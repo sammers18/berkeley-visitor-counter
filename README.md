@@ -181,14 +181,17 @@ Users → Route 53 → IGW → ALB (Public Subnets)
 
 ```
 terraform/
-├── provider.tf       # AWS provider configuration
-├── backend.tf        # S3 remote state
-├── variables.tf      # Variable definitions
-├── main.tf           # IAM, VPC, EKS, ElastiCache modules
-├── outputs.tf        # Resource outputs
-├── dev.tfvars        # Dev environment values
-└── non-prod.tfvars   # Non-Prod environment values
-└── prod.tfvars       # Prod environment values
+├── provider.tf          # AWS provider configuration
+├── backend.tf           # S3 remote state configuration
+├── backend-dev.hcl      # Dev backend state key
+├── backend-nonprod.hcl  # Non-Prod backend state key
+├── backend-prod.hcl     # Prod backend state key
+├── variables.tf         # Variable definitions
+├── main.tf              # IAM, VPC, EKS, ElastiCache modules
+├── outputs.tf           # Resource outputs
+├── dev.tfvars           # Dev environment values
+├── nonprod.tfvars       # Non-Prod environment values
+└── prod.tfvars          # Prod environment values
 ```
 
 ### Multi-Environment Support
@@ -212,7 +215,9 @@ Same code, different values per environment:
 # - S3 bucket for state: berkeley-tf-state
 
 # Initialize
-terraform init
+terraform init -backend-config=backend-dev.hcl
+terraform init -backend-config=backend-prod.hcl
+terraform init -backend-config=backend-non-prod.hcl
 
 # Plan
 terraform plan -var-file="dev.tfvars"
