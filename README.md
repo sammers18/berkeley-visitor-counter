@@ -68,6 +68,8 @@ This is the '2' visitor
 
 The environment variable values will be defined in Kubernetes Deployment files for EKS
 
+## Run Locally
+
 ## Build Docker Image
 
 ```
@@ -76,9 +78,7 @@ docker build -t berkeley-visitor-counter:1.0 .
 
 ---
 
-## Run Locally
-
-### Start Redis
+### Start Redis (create another container)
 
 ```
 docker run -d --name redis -p 6379:6379 redis
