@@ -331,7 +331,7 @@ module "developer_role" {
 
   role_name         = "${var.cluster_name}-developer-role"
   create_role       = true
-  role_requires_mfa = true # PROD: enforce MFA for role assumption
+  role_requires_mfa = false
 
   trusted_role_arns = [
     "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
