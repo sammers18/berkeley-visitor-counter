@@ -208,7 +208,7 @@ Same code, different values per environment:
 ```bash
 # Prerequisites
 # - AWS CLI configured
-# - Terraform >= 1.5.7
+# - Terraform >= 1.5.0
 # - S3 bucket for state: berkeley-tf-state
 
 # Initialize
