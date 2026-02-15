@@ -103,8 +103,8 @@ module "cluster_manager_policy" {
         Effect = "Allow"
         Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
         Resource = [
-          "arn:aws:s3:::berkeley-samia-tf-state",
-          "arn:aws:s3:::berkeley-samia-tf-state/*"
+          "arn:aws:s3:::berkeley-tf-state",
+          "arn:aws:s3:::berkeley-tf-state/*"
         ]
       }
     ]
