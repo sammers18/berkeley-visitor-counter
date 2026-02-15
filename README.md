@@ -241,8 +241,12 @@ terraform destroy -var-file="dev.tfvars"
 
 ### Security
 
-- EKS secrets encrypted with KMS
-- ElastiCache encryption at rest and in transit
-- Redis accessible only from EKS worker nodes (security group)
-- Workers in private subnets, no direct internet access
-- Least privilege IAM policies
+* EKS secrets encrypted with KMS
+* Node EBS volumes encrypted with KMS
+* ElastiCache encryption at rest and in transit
+* Redis accessible only from EKS worker nodes (security group)
+* Workers in private subnets, no direct internet access
+* Least privilege IAM policies
+* VPC Flow Logs enabled for network auditing
+* EKS API endpoint private-only in production
+* Separate state files per environment to prevent cross-environment impact
