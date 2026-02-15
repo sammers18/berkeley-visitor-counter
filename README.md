@@ -173,7 +173,7 @@ Users → Route 53 → IGW → ALB (Public Subnets)
 | Module | What it creates |
 |--------|----------------|
 | IAM | Cluster manager user (least privilege), developer role (read-only) |
-| VPC | VPC, 2 public subnets, 2 private subnets, NAT Gateway, IGW, route tables |
+| VPC | VPC,  public subnets,  private subnets, NAT Gateway, IGW, route tables |
 | EKS | Kubernetes cluster, managed node group, security groups, KMS encryption |
 | ElastiCache | Redis replication group, subnet group, security group |
 
