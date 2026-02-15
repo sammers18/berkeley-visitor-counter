@@ -186,13 +186,13 @@ terraform/
 
 Same code, different values per environment:
 
-| Config | Dev | Prod |
-|--------|-----|------|
-| Node type | t3.medium | t3.large |
-| Node count | 2-5 | 3-10 |
-| Redis type | cache.t3.micro | cache.t3.medium |
-| Redis replicas | 1 (no replica) | 2 (primary + replica) |
-| Multi-AZ failover | No | Yes |
+| Config | Dev | Non-Prod | Prod |
+|--------|-----|----------|------|
+| Node type | t3.medium | t3.medium | t3.large |
+| Node count | 2-5 | 2-5 | 3-10 |
+| Redis type | cache.t3.micro | cache.t3.micro | cache.t3.medium |
+| Redis replicas | 1 (no replica) | 2 (primary + replica) | 2 (primary + replica) |
+| Multi-AZ failover | No | Yes | Yes |
 
 ### Deploy Infrastructure
 
@@ -237,12 +237,3 @@ terraform destroy -var-file="dev.tfvars"
 - Workers in private subnets, no direct internet access
 - Least privilege IAM policies
 - OIDC provider enabled for IRSA (pod-level IAM roles)
-
-## Tech Stack
-
-- **Application:** Python, Flask, Redis
-- **Container:** Docker
-- **Orchestration:** AWS EKS (Kubernetes)
-- **Cache:** AWS ElastiCache (Redis 7.1)
-- **IaC:** Terraform
-- **Region:** ap-southeast-1 (Singapore)
