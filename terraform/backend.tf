@@ -1,8 +1,3 @@
 terraform {
-  backend "s3" {
-    bucket  = "berkeley-tf-state"
-    key     = "eks/terraform.tfstate"
-    region  = "ap-southeast-2"
-    encrypt = true
-  }
+  backend "s3" {}
 }
