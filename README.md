@@ -118,7 +118,7 @@ spec:
     spec:
       containers:
         - name: visitor-counter
-          image: <Image>
+          image: <ecr_image_url>
           ports:
             - containerPort: 8080
           env:
@@ -178,6 +178,7 @@ terraform/
 ├── main.tf           # IAM, VPC, EKS, ElastiCache modules
 ├── outputs.tf        # Resource outputs
 ├── dev.tfvars        # Dev environment values
+└── non-prod.tfvars   # Non-Prod environment values
 └── prod.tfvars       # Prod environment values
 ```
 
