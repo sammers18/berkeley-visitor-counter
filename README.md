@@ -228,15 +228,8 @@ terraform destroy -var-file="dev.tfvars"
 
 | User/Role | AWS Permissions | EKS Access | Purpose |
 |-----------|----------------|------------|---------|
-| Bootstrap user  | IAMAccess + S3 (state bucket only) | None | Creates IAM users/roles only |
 | berkeley-cluster-manager | Least privilege (EKS, VPC, ElastiCache, IAM for EKS, KMS, CloudWatch, S3 state) | Cluster admin | Runs Terraform, manages infra |
 | developer-role | ReadOnlyAccess | View only (dev, sit namespaces) | Dev team access |
-
-**Deployment Flow:**
-1. `user` (bootstrap) runs `terraform apply -target` to create IAM resources only
-2. Switch to `berkeley-cluster-manager` credentials
-3. `berkeley-cluster-manager` runs `terraform apply` to create VPC, EKS, ElastiCache
-4. Bootstrap user is no longer needed
 
 ### Security
 
