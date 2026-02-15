@@ -43,7 +43,16 @@ This is the '2' visitor
 ├── app.py
 ├── requirements.txt
 ├── Dockerfile
-└── README.md
+├── README.md
+└── terraform/
+    ├── provider.tf
+    ├── backend.tf
+    ├── variables.tf
+    ├── main.tf
+    ├── outputs.tf
+    ├── dev.tfvars
+    ├── non-prod.tfvars
+    └── prod.tfvars
 ```
 
 ---
