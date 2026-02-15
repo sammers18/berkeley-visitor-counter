@@ -5,65 +5,69 @@ variable "region" {
 }
 
 variable "environment" {
-  description = "Environment name (dev, sit, uat, prod)"
+  description = "Environment name"
   type        = string
 }
 
 variable "cluster_name" {
-  description = "EKS cluster name"
+  description = "Name of the EKS cluster"
   type        = string
 }
 
-# VPC
+variable "cluster_version" {
+  description = "Kubernetes version for EKS cluster"
+  type        = string
+}
+
+variable "admin_username" {
+  description = "IAM username for cluster manager"
+  type        = string
+}
+
 variable "vpc_cidr" {
-  description = "VPC CIDR block"
+  description = "CIDR block for the VPC"
   type        = string
 }
 
 variable "private_subnets" {
-  description = "Private subnet CIDRs"
+  description = "List of private subnet CIDRs (one per AZ)"
   type        = list(string)
+}
+
+variable "cluster_endpoint_public_access" {
+  description = "Enable public access to EKS API endpoint (false for prod, true for dev)"
+  type        = bool
+  default     = false
+}
+
+variable "single_nat_gateway" {
+  description = "Use a single NAT gateway (true for dev, false for prod HA)"
+  type        = bool
+  default     = false
 }
 
 variable "public_subnets" {
-  description = "Public subnet CIDRs"
+  description = "List of public subnet CIDRs (one per AZ)"
   type        = list(string)
 }
 
-# EKS
-variable "cluster_version" {
-  description = "Kubernetes version"
-  type        = string
-}
-
-variable "node_instance_type" {
-  description = "EC2 instance type for worker nodes"
-  type        = string
+variable "node_instance_types" {
+  description = "List of EC2 instance types for EKS managed node group"
+  type        = list(string)
 }
 
 variable "node_min_size" {
-  description = "Minimum number of worker nodes"
+  description = "Minimum number of nodes in the node group"
   type        = number
 }
 
 variable "node_max_size" {
-  description = "Maximum number of worker nodes"
+  description = "Maximum number of nodes in the node group"
   type        = number
 }
 
 variable "node_desired_size" {
-  description = "Desired number of worker nodes"
-  type        = number
-}
-
-# ElastiCache
-variable "redis_node_type" {
-  description = "ElastiCache node type"
-  type        = string
-}
-
-variable "redis_num_cache_clusters" {
-  description = "Number of cache clusters (1 = no replica, 2 = primary + replica)"
+  description = "Desired number of nodes in the node group"
   type        = number
 }
 
@@ -72,8 +76,12 @@ variable "redis_engine_version" {
   type        = string
 }
 
-# IAM
-variable "admin_username" {
-  description = "IAM cluster manager username"
+variable "redis_node_type" {
+  description = "ElastiCache node type for Redis"
   type        = string
+}
+
+variable "redis_num_cache_clusters" {
+  description = "Number of cache clusters (nodes) in the Redis replication group"
+  type        = number
 }
