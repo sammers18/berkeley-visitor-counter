@@ -228,7 +228,7 @@ terraform destroy -var-file="dev.tfvars"
 
 | User/Role | AWS Permissions | EKS Access | Purpose |
 |-----------|----------------|------------|---------|
-| Bootstrap user  | IAMFullAccess + S3 (state bucket only) | None | Creates IAM users/roles only |
+| Bootstrap user  | IAMAccess + S3 (state bucket only) | None | Creates IAM users/roles only |
 | berkeley-cluster-manager | Least privilege (EKS, VPC, ElastiCache, IAM for EKS, KMS, CloudWatch, S3 state) | Cluster admin | Runs Terraform, manages infra |
 | developer-role | ReadOnlyAccess | View only (dev, sit namespaces) | Dev team access |
 
