@@ -5,8 +5,8 @@ cluster_name = "berkeley-eks-cluster"
 
 # VPC
 vpc_cidr           = "10.1.0.0/16"
-private_subnets    = ["10.1.10.0/24"]
-public_subnets     = ["10.1.1.0/24"]
+private_subnets = ["10.1.10.0/24", "10.1.20.0/24"]
+public_subnets  = ["10.1.1.0/24", "10.1.2.0/24"]
 single_nat_gateway = true
 
 # EKS
