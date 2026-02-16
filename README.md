@@ -203,9 +203,9 @@ Same code, different values per environment:
 
 | Config | Dev | Non-Prod | Prod |
 |--------|-----|----------|------|
-| Node type | t3.micro | t3.medium | t3.medium |
+| Node type | t3.small | t3.medium | t3.medium |
 | Node count | 1-2 | 2-5 | 2-5 |
-| Redis type | cache.t3.micro | cache.t3.medium | cache.t3.medium |
+| Redis type | cache.t3.small | cache.t3.medium | cache.t3.medium |
 | Redis replicas | 1 (no replica) | 2 (primary + replica) | 2 (primary + replica) |
 | Multi-AZ failover | No | Yes | Yes |
 
