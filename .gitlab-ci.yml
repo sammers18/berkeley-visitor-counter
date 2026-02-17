@@ -3,26 +3,15 @@ variables:
   AWS_DEFAULT_REGION: "ap-southeast-1"
   APP_NAME: "berkeley-visitor-counter"
   DOCKER_REGISTRY: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-
-  # Image versions
-  PYTHON_IMAGE: "python:3.12-slim"
+  IMAGE_TAG: "${DOCKER_REGISTRY}/${APP_NAME}:${CI_COMMIT_SHORT_SHA}"
+  # Image versions (single place to update)
+  PYTHON_IMAGE: "python:3.14-slim"
   DOCKER_IMAGE: "docker:24.0.5"
   DOCKER_BUILD_IMAGE: "docker:24.0.5-dind"
   K8S_IMAGE: "alpine/k8s:1.29.2"
-  REDIS_IMAGE: "redis:7-alpine"
-
-  # Docker-in-Docker config
-  DOCKER_HOST: "tcp://docker:2376"
-  DOCKER_TLS_CERTDIR: "/certs"
-  DOCKER_TLS_VERIFY: "1"
-  DOCKER_CERT_PATH: "/certs/client"
-
   # Cluster config
   EKS_CLUSTER_PREFIX: "berkeley"
   ROLLOUT_TIMEOUT: "120s"
-  # Define tag
-  IMAGE_TAG: "${DOCKER_REGISTRY}/${APP_NAME}:${CI_COMMIT_SHORT_SHA}"
-  CACHE_TAG: "${DOCKER_REGISTRY}/${APP_NAME}:latest"
 
 stages:
   - build
@@ -35,7 +24,6 @@ stages:
     GITLAB_OIDC_TOKEN:
       aud: https://gitlab.com
   before_script:
-    - apk add --no-cache aws-cli gettext
     - >
       export $(aws sts assume-role-with-web-identity
         --role-arn "${AWS_ROLE_ARN}"
@@ -49,92 +37,90 @@ build:
   stage: build
   image: ${DOCKER_IMAGE}
   services:
-    - name: ${DOCKER_BUILD_IMAGE}
-      alias: docker
+    - ${DOCKER_BUILD_IMAGE}
   extends: .aws_oidc_auth
   script:
-    # Wait for Docker daemon to be ready (prevents connection errors)
-    - until docker info > /dev/null 2>&1; do sleep 1; done
+    - apk add --no-cache aws-cli
     - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}
-    - docker pull ${CACHE_TAG} || true
-    - >
-      docker build
-      --cache-from ${CACHE_TAG}
-      -t ${IMAGE_TAG}
-      -t ${CACHE_TAG} .
+    - docker build -t ${IMAGE_TAG} .
     - docker push ${IMAGE_TAG}
-    - docker push ${CACHE_TAG}
   rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(dev|non-prod|prod)$/
-    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_COMMIT_BRANCH =~ /^(dev|qa|non-prod|prod)$/
 
 # ===================== TEST STAGE =====================
 unit_test:
   stage: test
   image: ${PYTHON_IMAGE}
   script:
-    - pip install -r requirements.txt pytest
-    - python -m pytest tests/ -v
-  rules:
-    - if: $CI_MERGE_REQUEST_IID
-    - if: $CI_COMMIT_BRANCH
+    - pip install -r requirements.txt
+    - pip install pytest pytest-cov
+    - python -m pytest tests/ -v --cov=app --cov-report=term
 
-integration_test:
+lint:
   stage: test
   image: ${PYTHON_IMAGE}
-  services:
-    - name: ${REDIS_IMAGE}
-      alias: redis
-  variables:
-    REDIS_HOST: redis
-    REDIS_PORT: "6379"
   script:
-    - pip install -r requirements.txt pytest requests
-    - python -m pytest tests/test_integration.py -v
-  rules:
-    - if: $CI_MERGE_REQUEST_IID
-    - if: $CI_COMMIT_BRANCH
+    - pip install flake8
+    - flake8 app.py --max-line-length=120 --statistics
+
+dependency_scan:
+  stage: test
+  image: ${PYTHON_IMAGE}
+  script:
+    - pip install pip-audit
+    - pip install -r requirements.txt
+    - pip-audit
 
 # ===================== DEPLOY TEMPLATE =====================
 .deploy_template:
   stage: deploy
   image: ${K8S_IMAGE}
   extends: .aws_oidc_auth
-  needs:
-    - job: build
-      artifacts: false
-      optional: true
   script:
+    - apk add --no-cache aws-cli gettext
     - aws eks update-kubeconfig --region ${AWS_DEFAULT_REGION} --name ${EKS_CLUSTER_NAME}
-    # Verify image exists in ECR before deploying
-    - aws ecr describe-images --repository-name ${APP_NAME} --image-ids imageTag=${CI_COMMIT_SHORT_SHA} --region ${AWS_DEFAULT_REGION}
-    - envsubst '${IMAGE_TAG} ${APP_NAME} ${DEPLOY_NAMESPACE}' < k8s-deployment.yaml > deployment.yaml
+    - envsubst < k8s-deployment.yaml > deployment.yaml
     - kubectl apply -f deployment.yaml -n ${DEPLOY_NAMESPACE}
     - kubectl rollout status deployment/${APP_NAME} -n ${DEPLOY_NAMESPACE} --timeout=${ROLLOUT_TIMEOUT}
 
 # ===================== DEPLOY JOBS =====================
+
 deploy_dev:
   extends: .deploy_template
   variables:
-    EKS_CLUSTER_NAME: "${EKS_CLUSTER_PREFIX}-eks-cluster"
+    EKS_CLUSTER_NAME: "${EKS_CLUSTER_PREFIX}-dev"
     DEPLOY_NAMESPACE: "dev"
+  environment:
+    name: dev
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
+
+deploy_qa:
+  extends: .deploy_template
+  variables:
+    EKS_CLUSTER_NAME: "${EKS_CLUSTER_PREFIX}-qa"
+    DEPLOY_NAMESPACE: "qa"
+  environment:
+    name: qa
+  rules:
+    - if: $CI_COMMIT_BRANCH == "qa"
 
 deploy_nonprod:
   extends: .deploy_template
   variables:
     EKS_CLUSTER_NAME: "${EKS_CLUSTER_PREFIX}-nonprod"
     DEPLOY_NAMESPACE: "non-prod"
+  environment:
+    name: non-prod
   rules:
     - if: $CI_COMMIT_BRANCH == "non-prod"
-      when: manual
 
 deploy_prod:
   extends: .deploy_template
   variables:
     EKS_CLUSTER_NAME: "${EKS_CLUSTER_PREFIX}-prod"
     DEPLOY_NAMESPACE: "prod"
+  environment:
+    name: prod
   rules:
     - if: $CI_COMMIT_BRANCH == "prod"
-      when: manual
