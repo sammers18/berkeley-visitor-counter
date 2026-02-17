@@ -3,19 +3,19 @@ variables:
   AWS_DEFAULT_REGION: "ap-southeast-1"
   APP_NAME: "berkeley-visitor-counter"
   DOCKER_REGISTRY: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-  IMAGE_TAG: "${DOCKER_REGISTRY}/${APP_NAME}:${CI_COMMIT_SHORT_SHA}"
+  # Base image tag - same image promoted across environments
+  BASE_IMAGE_TAG: "${DOCKER_REGISTRY}/${APP_NAME}:${CI_COMMIT_SHORT_SHA}"
   # Image versions (single place to update)
   PYTHON_IMAGE: "python:3.14-slim"
   DOCKER_IMAGE: "docker:24.0.5"
-  DOCKER_BUILD_IMAGE: "docker:24.0.5-dind"
   K8S_IMAGE: "alpine/k8s:1.29.2"
   # Cluster config
   EKS_CLUSTER_PREFIX: "berkeley"
   ROLLOUT_TIMEOUT: "120s"
 
 stages:
-  - build
   - test
+  - build
   - deploy
 
 # ===================== REUSABLE AUTH =====================
@@ -32,59 +32,95 @@ stages:
         --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]'
         --output text | awk '{print "AWS_ACCESS_KEY_ID="$1"\nAWS_SECRET_ACCESS_KEY="$2"\nAWS_SESSION_TOKEN="$3}')
 
-# ===================== BUILD STAGE =====================
-build:
-  stage: build
-  image: ${DOCKER_IMAGE}
-  services:
-    - ${DOCKER_BUILD_IMAGE}
-  extends: .aws_oidc_auth
-  script:
-    - apk add --no-cache aws-cli
-    - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}
-    - docker build -t ${IMAGE_TAG} .
-    - docker push ${IMAGE_TAG}
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(dev|qa|non-prod|prod)$/
-
 # ===================== TEST STAGE =====================
 unit_test:
   stage: test
   image: ${PYTHON_IMAGE}
+  cache:
+    paths:
+      - .cache/pip
+  before_script:
+    - pip config set global.cache-dir .cache/pip
   script:
     - pip install -r requirements.txt
     - pip install pytest pytest-cov
     - python -m pytest tests/ -v --cov=app --cov-report=term
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(dev|qa|non-prod|prod)$/
 
 lint:
   stage: test
   image: ${PYTHON_IMAGE}
+  cache:
+    paths:
+      - .cache/pip
+  before_script:
+    - pip config set global.cache-dir .cache/pip
   script:
     - pip install flake8
     - flake8 app.py --max-line-length=120 --statistics
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(dev|qa|non-prod|prod)$/
 
 dependency_scan:
   stage: test
   image: ${PYTHON_IMAGE}
+  cache:
+    paths:
+      - .cache/pip
+  before_script:
+    - pip config set global.cache-dir .cache/pip
   script:
     - pip install pip-audit
     - pip install -r requirements.txt
     - pip-audit
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(dev|qa|non-prod|prod)$/
+
+# ===================== BUILD STAGE =====================
+build:
+  stage: build
+  image: ${DOCKER_IMAGE}
+  extends: .aws_oidc_auth
+  needs:
+    - unit_test
+    - lint
+    - dependency_scan
+  before_script:
+    - !reference [.aws_oidc_auth, before_script]
+    - apk add --no-cache aws-cli
+  script:
+    - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}
+    # Check if image already exists (for promotion workflow)
+    - |
+      if aws ecr describe-images --repository-name ${APP_NAME} --image-ids imageTag=${CI_COMMIT_SHORT_SHA} --region ${AWS_DEFAULT_REGION} >/dev/null 2>&1; then
+        echo "Image ${BASE_IMAGE_TAG} already exists, skipping build"
+        exit 0
+      fi
+    - docker build -t ${BASE_IMAGE_TAG} .
+    - docker push ${BASE_IMAGE_TAG}
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(dev|qa|non-prod|prod)$/
 
 # ===================== DEPLOY TEMPLATE =====================
 .deploy_template:
   stage: deploy
   image: ${K8S_IMAGE}
   extends: .aws_oidc_auth
-  script:
+  needs:
+    - build
+  before_script:
+    - !reference [.aws_oidc_auth, before_script]
     - apk add --no-cache aws-cli gettext
+  script:
     - aws eks update-kubeconfig --region ${AWS_DEFAULT_REGION} --name ${EKS_CLUSTER_NAME}
+    # Set the image tag for this deployment
+    - export IMAGE_TAG=${BASE_IMAGE_TAG}
     - envsubst < k8s-deployment.yaml > deployment.yaml
     - kubectl apply -f deployment.yaml -n ${DEPLOY_NAMESPACE}
     - kubectl rollout status deployment/${APP_NAME} -n ${DEPLOY_NAMESPACE} --timeout=${ROLLOUT_TIMEOUT}
 
 # ===================== DEPLOY JOBS =====================
-
 deploy_dev:
   extends: .deploy_template
   variables:
@@ -104,6 +140,8 @@ deploy_qa:
     name: qa
   rules:
     - if: $CI_COMMIT_BRANCH == "qa"
+      when: manual
+      allow_failure: false
 
 deploy_nonprod:
   extends: .deploy_template
@@ -114,6 +152,8 @@ deploy_nonprod:
     name: non-prod
   rules:
     - if: $CI_COMMIT_BRANCH == "non-prod"
+      when: manual
+      allow_failure: false
 
 deploy_prod:
   extends: .deploy_template
@@ -124,3 +164,5 @@ deploy_prod:
     name: prod
   rules:
     - if: $CI_COMMIT_BRANCH == "prod"
+      when: manual
+      allow_failure: false
