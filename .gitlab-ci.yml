@@ -3,9 +3,9 @@ variables:
   AWS_DEFAULT_REGION: "ap-southeast-1"
   APP_NAME: "berkeley-visitor-counter"
   DOCKER_REGISTRY: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-  # Base image tag - same image promoted across environments
+  # Base image tag 
   BASE_IMAGE_TAG: "${DOCKER_REGISTRY}/${APP_NAME}:${CI_COMMIT_SHORT_SHA}"
-  # Image versions (Updated to 3.12 for stability)
+  # Image versions 
   PYTHON_IMAGE: "python:3.12-slim"
   DOCKER_IMAGE: "docker:24.0.5"
   DOCKER_BUILD_IMAGE: "docker:24.0.5-dind"
@@ -81,7 +81,7 @@ build:
     - dependency_scan
   script:
     - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}
-    # Check if image already exists (Promotion logic)
+    # Check if image already exists 
     - |
       if aws ecr describe-images --repository-name ${APP_NAME} --image-ids imageTag=${CI_COMMIT_SHORT_SHA} --region ${AWS_DEFAULT_REGION} >/dev/null 2>&1; then
         echo "Image ${BASE_IMAGE_TAG} already exists, skipping build"
